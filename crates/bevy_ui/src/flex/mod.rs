@@ -13,7 +13,7 @@ use bevy_transform::prelude::{Children, Parent, Transform};
 use bevy_utils::HashMap;
 use bevy_window::{Window, WindowId, WindowScaleFactorChanged, Windows};
 use std::fmt;
-use stretch::{number::Number, Stretch};
+use stretch::{number::Number, Stretch, node::MeasureFunc};
 
 pub struct FlexSurface {
     entity_to_stretch: HashMap<Entity, stretch::node::Node>,
@@ -59,7 +59,7 @@ impl FlexSurface {
         let stretch_style = convert::from_style(scale_factor, style);
         let stretch_node = self.entity_to_stretch.entry(entity).or_insert_with(|| {
             added = true;
-            stretch.new_node(stretch_style, Vec::new()).unwrap()
+            stretch.new_node(stretch_style, &Vec::new()).unwrap()
         });
 
         if !added {
@@ -78,7 +78,7 @@ impl FlexSurface {
     ) {
         let stretch = &mut self.stretch;
         let stretch_style = convert::from_style(scale_factor, style);
-        let measure = Box::new(move |constraints: stretch::geometry::Size<Number>| {
+        let measure = MeasureFunc::Boxed(Box::new(move |constraints: stretch::geometry::Size<Number>| {
             let mut size = convert::from_f32_size(scale_factor, calculated_size.size);
             match (constraints.width, constraints.height) {
                 (Number::Undefined, Number::Undefined) => {}
@@ -95,8 +95,8 @@ impl FlexSurface {
                     size.height = height;
                 }
             }
-            Ok(size)
-        });
+            size
+        }));
 
         if let Some(stretch_node) = self.entity_to_stretch.get(&entity) {
             self.stretch
@@ -126,7 +126,7 @@ without UI components as a child of an entity with UI components, results may be
 
         let stretch_node = self.entity_to_stretch.get(&entity).unwrap();
         self.stretch
-            .set_children(*stretch_node, stretch_children)
+            .set_children(*stretch_node, &stretch_children)
             .unwrap();
     }
 
@@ -134,7 +134,7 @@ without UI components as a child of an entity with UI components, results may be
         let stretch = &mut self.stretch;
         let node = self.window_nodes.entry(window.id()).or_insert_with(|| {
             stretch
-                .new_node(stretch::style::Style::default(), Vec::new())
+                .new_node(stretch::style::Style::default(), &Vec::new())
                 .unwrap()
         });
 
@@ -162,7 +162,7 @@ without UI components as a child of an entity with UI components, results may be
             .map(|e| *self.entity_to_stretch.get(&e).unwrap())
             .collect::<Vec<stretch::node::Node>>();
         self.stretch
-            .set_children(*stretch_node, child_nodes)
+            .set_children(*stretch_node, &child_nodes)
             .unwrap();
     }
 
