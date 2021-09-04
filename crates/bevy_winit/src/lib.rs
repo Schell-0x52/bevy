@@ -489,10 +489,10 @@ pub fn winit_runner_with(mut app: App, mut event_loop: EventLoop<()>) {
                     delta: Vec2::new(delta.0 as f32, delta.1 as f32),
                 });
             }
-            event::Event::Suspended => {
+            event::Event::Background => {
                 active = false;
             }
-            event::Event::Resumed => {
+            event::Event::Foreground => {
                 active = true;
             }
             event::Event::MainEventsCleared => {
