@@ -15,7 +15,7 @@ use bevy_ecs::{system::IntoExclusiveSystem, world::World};
 use bevy_math::{ivec2, Vec2};
 use bevy_utils::tracing::{error, trace, warn};
 use bevy_window::{
-    CreateWindow, CursorEntered, CursorLeft, CursorMoved, FileDragAndDrop, ReceivedCharacter,
+    CreateWindow, CursorEntered, CursorLeft, CursorMoved, FileDragAndDrop, OpenFile, ReceivedCharacter,
     WindowBackendScaleFactorChanged, WindowCloseRequested, WindowCreated, WindowFocused,
     WindowMoved, WindowResized, WindowScaleFactorChanged, Windows,
 };
@@ -494,6 +494,13 @@ pub fn winit_runner_with(mut app: App, mut event_loop: EventLoop<()>) {
             }
             event::Event::Foreground => {
                 active = true;
+            }
+            event::Event::OpenFile(path_buf) => {
+                let mut events =
+                    app.world.get_resource_mut::<Events<OpenFile>>().unwrap();
+                events.send(OpenFile {
+                    path_buf,
+                });
             }
             event::Event::MainEventsCleared => {
                 handle_create_window_events(
