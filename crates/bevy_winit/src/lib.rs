@@ -15,7 +15,7 @@ use bevy_ecs::{system::IntoExclusiveSystem, world::World};
 use bevy_math::{ivec2, Vec2};
 use bevy_utils::tracing::{error, trace, warn};
 use bevy_window::{
-    CreateWindow, CursorEntered, CursorLeft, CursorMoved, FileDragAndDrop, OpenFile, ReceivedCharacter,
+    CreateWindow, CursorEntered, CursorLeft, CursorMoved, FileDragAndDrop, OpenFile, AppLifecycle, ReceivedCharacter,
     WindowBackendScaleFactorChanged, WindowCloseRequested, WindowCreated, WindowFocused,
     WindowMoved, WindowResized, WindowScaleFactorChanged, Windows,
 };
@@ -232,8 +232,6 @@ pub fn winit_runner_with(mut app: App, mut event_loop: EventLoop<()>) {
         .world
         .get_resource::<WinitConfig>()
         .map_or(false, |config| config.return_from_run);
-
-    let mut active = true;
 
     let event_handler = move |event: Event<()>,
                               event_loop: &EventLoopWindowTarget<()>,
@@ -489,11 +487,25 @@ pub fn winit_runner_with(mut app: App, mut event_loop: EventLoop<()>) {
                     delta: Vec2::new(delta.0 as f32, delta.1 as f32),
                 });
             }
+            event::Event::Suspended => {
+                let mut events =
+                    app.world.get_resource_mut::<Events<AppLifecycle>>().unwrap();
+                events.send(AppLifecycle::Suspended);
+            }
+            event::Event::Resumed => {
+                let mut events =
+                    app.world.get_resource_mut::<Events<AppLifecycle>>().unwrap();
+                events.send(AppLifecycle::Resumed);
+            }
             event::Event::Background => {
-                active = false;
+                let mut events =
+                    app.world.get_resource_mut::<Events<AppLifecycle>>().unwrap();
+                events.send(AppLifecycle::Background);
             }
             event::Event::Foreground => {
-                active = true;
+                let mut events =
+                    app.world.get_resource_mut::<Events<AppLifecycle>>().unwrap();
+                events.send(AppLifecycle::Foreground);
             }
             event::Event::OpenFile(path_buf) => {
                 let mut events =
@@ -508,9 +520,7 @@ pub fn winit_runner_with(mut app: App, mut event_loop: EventLoop<()>) {
                     event_loop,
                     &mut create_window_event_reader,
                 );
-                if active {
-                    app.update();
-                }
+                app.update();
             }
             _ => (),
         }
