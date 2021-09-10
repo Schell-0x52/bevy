@@ -99,7 +99,7 @@ pub struct OpenFile {
 }
 
 /// An event that indicates the current state of the app lifecycle.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum AppLifecycle {
     Suspended,
     Resumed,

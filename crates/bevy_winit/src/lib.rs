@@ -34,6 +34,7 @@ use winit::dpi::LogicalSize;
     target_os = "openbsd"
 ))]
 use winit::platform::unix::EventLoopExtUnix;
+use std::time::{Instant, Duration};
 
 #[derive(Default)]
 pub struct WinitPlugin;
@@ -236,7 +237,8 @@ pub fn winit_runner_with(mut app: App, mut event_loop: EventLoop<()>) {
     let event_handler = move |event: Event<()>,
                               event_loop: &EventLoopWindowTarget<()>,
                               control_flow: &mut ControlFlow| {
-        *control_flow = ControlFlow::Poll;
+        // HACK limit polling to 100Hz, fixes delay on resume
+        *control_flow = ControlFlow::WaitUntil(Instant::now().checked_add(Duration::from_millis(10)).unwrap());
 
         if let Some(app_exit_events) = app.world.get_resource_mut::<Events<AppExit>>() {
             if app_exit_event_reader
