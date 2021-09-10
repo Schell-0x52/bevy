@@ -34,7 +34,6 @@ use winit::dpi::LogicalSize;
     target_os = "openbsd"
 ))]
 use winit::platform::unix::EventLoopExtUnix;
-use std::time::{Instant, Duration};
 
 #[derive(Default)]
 pub struct WinitPlugin;
@@ -225,6 +224,7 @@ pub fn winit_runner_any_thread(app: App) {
 pub fn winit_runner_with(mut app: App, mut event_loop: EventLoop<()>) {
     let mut create_window_event_reader = ManualEventReader::<CreateWindow>::default();
     let mut app_exit_event_reader = ManualEventReader::<AppExit>::default();
+    let mut active = true;
     app.world.insert_non_send(event_loop.create_proxy());
 
     trace!("Entering winit event loop");
@@ -237,8 +237,7 @@ pub fn winit_runner_with(mut app: App, mut event_loop: EventLoop<()>) {
     let event_handler = move |event: Event<()>,
                               event_loop: &EventLoopWindowTarget<()>,
                               control_flow: &mut ControlFlow| {
-        // HACK limit polling to 100Hz, fixes delay on resume
-        *control_flow = ControlFlow::WaitUntil(Instant::now().checked_add(Duration::from_millis(10)).unwrap());
+        *control_flow = if active { ControlFlow::Poll } else { ControlFlow::Wait };
 
         if let Some(app_exit_events) = app.world.get_resource_mut::<Events<AppExit>>() {
             if app_exit_event_reader
@@ -493,21 +492,25 @@ pub fn winit_runner_with(mut app: App, mut event_loop: EventLoop<()>) {
                 let mut events =
                     app.world.get_resource_mut::<Events<AppLifecycle>>().unwrap();
                 events.send(AppLifecycle::Suspended);
+                active = false;
             }
             event::Event::Resumed => {
                 let mut events =
                     app.world.get_resource_mut::<Events<AppLifecycle>>().unwrap();
                 events.send(AppLifecycle::Resumed);
+                active = true;
             }
             event::Event::Background => {
                 let mut events =
                     app.world.get_resource_mut::<Events<AppLifecycle>>().unwrap();
                 events.send(AppLifecycle::Background);
+                active = false;
             }
             event::Event::Foreground => {
                 let mut events =
                     app.world.get_resource_mut::<Events<AppLifecycle>>().unwrap();
                 events.send(AppLifecycle::Foreground);
+                active = true;
             }
             event::Event::OpenFile(path_buf) => {
                 let mut events =
