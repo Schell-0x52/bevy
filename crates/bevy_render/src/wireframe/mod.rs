@@ -10,8 +10,9 @@ use bevy_asset::{Assets, Handle, HandleUntyped};
 use bevy_ecs::{
     component::Component,
     query::{QueryState, With},
+    prelude::Query,
     reflect::ReflectComponent,
-    system::{QuerySet, Res},
+    system::{ParamSet, Res},
     world::Mut,
 };
 use bevy_reflect::{Reflect, TypeUuid};
@@ -62,9 +63,9 @@ pub fn draw_wireframes_system(
     msaa: Res<Msaa>,
     meshes: Res<Assets<Mesh>>,
     wireframe_config: Res<WireframeConfig>,
-    mut query: QuerySet<(
-        QueryState<(&mut Draw, &mut RenderPipelines, &Handle<Mesh>, &Visible)>,
-        QueryState<(&mut Draw, &mut RenderPipelines, &Handle<Mesh>, &Visible), With<Wireframe>>,
+    mut query: ParamSet<(
+        Query<(&mut Draw, &mut RenderPipelines, &Handle<Mesh>, &Visible)>,
+        Query<(&mut Draw, &mut RenderPipelines, &Handle<Mesh>, &Visible), With<Wireframe>>,
     )>,
 ) {
     let iterator = |(mut draw, mut render_pipelines, mesh_handle, visible): (
@@ -124,8 +125,8 @@ pub fn draw_wireframes_system(
     };
 
     if wireframe_config.global {
-        query.q0().iter_mut().for_each(iterator);
+        query.p0().iter_mut().for_each(iterator);
     } else {
-        query.q1().iter_mut().for_each(iterator);
+        query.p1().iter_mut().for_each(iterator);
     }
 }
