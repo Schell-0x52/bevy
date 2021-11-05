@@ -565,3 +565,5 @@ target_sdk_version = 29
 
 [patch.crates-io]
 coreaudio-sys = { git = "https://github.com/HackerFoo/coreaudio-sys.git", branch = "add-aarch64-apple-ios-sim" }
+gfx-backend-metal = { git = "https://github.com/mockersf/gfx/", branch = "hal-0.9" }
+gfx-hal = { git = "https://github.com/mockersf/gfx/", branch = "hal-0.9" }
