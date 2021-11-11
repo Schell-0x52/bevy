@@ -338,6 +338,14 @@ unsafe impl<T: Resource> SystemParamState for ResState<T> {
 
     fn init(world: &mut World, system_meta: &mut SystemMeta, _config: Self::Config) -> Self {
         let component_id = world.initialize_resource::<T>();
+        let combined_access = system_meta.component_access_set.combined_access_mut();
+        if combined_access.has_write(component_id) {
+            panic!(
+                "error[B0002]: Res<{}> in system {} conflicts with a previous ResMut<{0}> access. Consider removing the duplicate access.",
+                std::any::type_name::<T>(), system_meta.name);
+        }
+        combined_access.add_read(component_id);
+
         let resource_archetype = world.archetypes.resource();
         let archetype_component_id = resource_archetype
             .get_archetype_component_id(component_id)
@@ -475,6 +483,18 @@ unsafe impl<T: Resource> SystemParamState for ResMutState<T> {
 
     fn init(world: &mut World, system_meta: &mut SystemMeta, _config: Self::Config) -> Self {
         let component_id = world.initialize_resource::<T>();
+        let combined_access = system_meta.component_access_set.combined_access_mut();
+        if combined_access.has_write(component_id) {
+            panic!(
+                "error[B0002]: ResMut<{}> in system {} conflicts with a previous ResMut<{0}> access. Consider removing the duplicate access.",
+                std::any::type_name::<T>(), system_meta.name);
+        } else if combined_access.has_read(component_id) {
+            panic!(
+                "error[B0002]: ResMut<{}> in system {} conflicts with a previous Res<{0}> access. Consider removing the duplicate access.",
+                std::any::type_name::<T>(), system_meta.name);
+        }
+        combined_access.add_write(component_id);
+
         let resource_archetype = world.archetypes.resource();
         let archetype_component_id = resource_archetype
             .get_archetype_component_id(component_id)
@@ -898,6 +918,14 @@ unsafe impl<T: 'static> SystemParamState for NonSendState<T> {
         system_meta.set_non_send();
 
         let component_id = world.initialize_non_send_resource::<T>();
+        let combined_access = system_meta.component_access_set.combined_access_mut();
+        if combined_access.has_write(component_id) {
+            panic!(
+                "error[B0002]: NonSend<{}> in system {} conflicts with a previous mutable resource access ({0}). Consider removing the duplicate access.",
+                std::any::type_name::<T>(), system_meta.name);
+        }
+        combined_access.add_read(component_id);
+
         let resource_archetype = world.archetypes.resource();
         let archetype_component_id = resource_archetype
             .get_archetype_component_id(component_id)
@@ -1039,6 +1067,18 @@ unsafe impl<T: 'static> SystemParamState for NonSendMutState<T> {
     fn init(world: &mut World, system_meta: &mut SystemMeta, _config: Self::Config) -> Self {
         system_meta.set_non_send();
         let component_id = world.initialize_non_send_resource::<T>();
+        let combined_access = system_meta.component_access_set.combined_access_mut();
+        if combined_access.has_write(component_id) {
+            panic!(
+                "error[B0002]: NonSendMut<{}> in system {} conflicts with a previous mutable resource access ({0}). Consider removing the duplicate access.",
+                std::any::type_name::<T>(), system_meta.name);
+        } else if combined_access.has_read(component_id) {
+            panic!(
+                "error[B0002]: NonSendMut<{}> in system {} conflicts with a previous immutable resource access ({0}). Consider removing the duplicate access.",
+                std::any::type_name::<T>(), system_meta.name);
+        }
+        combined_access.add_write(component_id);
+
         let resource_archetype = world.archetypes.resource();
         let archetype_component_id = resource_archetype
             .get_archetype_component_id(component_id)

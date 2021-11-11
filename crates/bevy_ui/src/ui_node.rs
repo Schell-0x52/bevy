@@ -1,4 +1,4 @@
-use bevy_ecs::{component::Component, reflect::ReflectComponent};
+use bevy_ecs::{prelude::*, reflect::ReflectComponent};
 use bevy_math::{Rect, Size, Vec2};
 use bevy_reflect::{Reflect, ReflectDeserialize};
 use bevy_render::renderer::RenderResources;
@@ -9,6 +9,14 @@ use std::ops::{Add, AddAssign};
 #[reflect(Component)]
 pub struct Node {
     pub size: Vec2,
+}
+
+/// If you add this to an entity, it should be the *only* component on it from bevy_ui.
+/// This component marks an entity as "transparent" to the UI layout system, meaning the
+/// children of this entity will be treated as the children of this entity s parent by the layout system.
+#[derive(Clone, Default, Component)]
+pub struct ControlNode {
+    pub(crate) true_parent: Option<Entity>,
 }
 
 #[derive(Copy, Clone, PartialEq, Debug, Serialize, Deserialize, Reflect)]
@@ -49,6 +57,14 @@ impl AddAssign<f32> for Val {
     }
 }
 
+/// UI node style.
+///
+/// The UI layout system follows the CSS layout model specification (see
+/// [this section](https://www.w3.org/TR/CSS2/visuren.html) in particular).
+/// One notable difference however is that the vertical axis is inverted,
+/// with the Y axis pointing up in Bevy (origin in bottom left corner).
+///
+/// You may find [this flexbox guide](https://css-tricks.com/snippets/css/a-guide-to-flexbox/) helpful.
 #[derive(Component, Clone, PartialEq, Debug, Reflect)]
 #[reflect(Component, PartialEq)]
 pub struct Style {

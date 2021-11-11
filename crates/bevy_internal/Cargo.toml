@@ -1,7 +1,7 @@
 [package]
 name = "bevy_internal"
 version = "0.5.0"
-edition = "2018"
+edition = "2021"
 description = "An internal Bevy crate used to facilitate optional dynamic linking via the 'dynamic' feature"
 homepage = "https://bevyengine.org"
 repository = "https://github.com/bevyengine/bevy"
@@ -28,9 +28,6 @@ flac = ["bevy_audio/flac"]
 mp3 = ["bevy_audio/mp3"]
 vorbis = ["bevy_audio/vorbis"]
 wav = ["bevy_audio/wav"]
-
-# WASM support for audio
-wasm_audio = ["bevy_audio/wasm_audio"]
 
 serialize = ["bevy_input/serialize"]
 
