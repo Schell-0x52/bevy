@@ -9,7 +9,7 @@ use bevy_app::prelude::*;
 use bevy_asset::{Assets, Handle, HandleUntyped};
 use bevy_ecs::{
     component::Component,
-    query::{QueryState, With},
+    query::{With},
     prelude::Query,
     reflect::ReflectComponent,
     system::{ParamSet, Res},
