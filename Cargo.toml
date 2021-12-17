@@ -11,9 +11,9 @@ license = "MIT OR Apache-2.0"
 readme = "README.md"
 repository = "https://github.com/bevyengine/bevy"
 
-[workspace]
-exclude = ["benches", "crates/bevy_ecs_compile_fail_tests"]
-members = ["crates/*", "examples/ios", "tools/ci", "errors"]
+#[workspace]
+#exclude = ["benches", "crates/bevy_ecs_compile_fail_tests"]
+#members = ["crates/*", "examples/ios", "tools/ci", "errors"]
 
 [features]
 default = [
