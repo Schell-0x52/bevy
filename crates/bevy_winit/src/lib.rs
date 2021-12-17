@@ -15,7 +15,7 @@ use bevy_ecs::{system::IntoExclusiveSystem, world::World};
 use bevy_math::{ivec2, DVec2, Vec2};
 use bevy_utils::tracing::{error, trace, warn};
 use bevy_window::{
-    CreateWindow, CursorEntered, CursorLeft, CursorMoved, FileDragAndDrop, ReceivedCharacter,
+    CreateWindow, CursorEntered, CursorLeft, CursorMoved, FileDragAndDrop, OpenFile, AppLifecycle, ReceivedCharacter,
     WindowBackendScaleFactorChanged, WindowCloseRequested, WindowCreated, WindowFocused,
     WindowMoved, WindowResized, WindowScaleFactorChanged, Windows,
 };
@@ -26,6 +26,14 @@ use winit::{
 };
 
 use winit::dpi::LogicalSize;
+#[cfg(any(
+    target_os = "linux",
+    target_os = "dragonfly",
+    target_os = "freebsd",
+    target_os = "netbsd",
+    target_os = "openbsd"
+))]
+use winit::platform::unix::EventLoopExtUnix;
 
 #[derive(Default)]
 pub struct WinitPlugin;
@@ -35,9 +43,6 @@ impl Plugin for WinitPlugin {
         app.init_resource::<WinitWindows>()
             .set_runner(winit_runner)
             .add_system_to_stage(CoreStage::PostUpdate, change_window.exclusive_system());
-        let event_loop = EventLoop::new();
-        handle_initial_window_events(&mut app.world, &event_loop);
-        app.insert_non_send_resource(event_loop);
     }
 }
 
@@ -208,24 +213,24 @@ where
 }
 
 pub fn winit_runner(app: App) {
-    winit_runner_with(app);
+    winit_runner_with(app, EventLoop::new());
 }
 
-// #[cfg(any(
-//     target_os = "linux",
-//     target_os = "dragonfly",
-//     target_os = "freebsd",
-//     target_os = "netbsd",
-//     target_os = "openbsd"
-// ))]
-// pub fn winit_runner_any_thread(app: App) {
-//     winit_runner_with(app, EventLoop::new_any_thread());
-// }
+#[cfg(any(
+    target_os = "linux",
+    target_os = "dragonfly",
+    target_os = "freebsd",
+    target_os = "netbsd",
+    target_os = "openbsd"
+))]
+pub fn winit_runner_any_thread(app: App) {
+    winit_runner_with(app, EventLoop::new_any_thread());
+}
 
-pub fn winit_runner_with(mut app: App) {
-    let mut event_loop = app.world.remove_non_send::<EventLoop<()>>().unwrap();
+pub fn winit_runner_with(mut app: App, mut event_loop: EventLoop<()>) {
     let mut create_window_event_reader = ManualEventReader::<CreateWindow>::default();
     let mut app_exit_event_reader = ManualEventReader::<AppExit>::default();
+    let mut active = true;
     app.world.insert_non_send(event_loop.create_proxy());
 
     trace!("Entering winit event loop");
@@ -235,12 +240,10 @@ pub fn winit_runner_with(mut app: App) {
         .get_resource::<WinitConfig>()
         .map_or(false, |config| config.return_from_run);
 
-    let mut active = true;
-
     let event_handler = move |event: Event<()>,
                               event_loop: &EventLoopWindowTarget<()>,
                               control_flow: &mut ControlFlow| {
-        *control_flow = ControlFlow::Poll;
+        *control_flow = if active { ControlFlow::Poll } else { ControlFlow::Wait };
 
         if let Some(app_exit_events) = app.world.get_resource_mut::<Events<AppExit>>() {
             if app_exit_event_reader
@@ -489,10 +492,35 @@ pub fn winit_runner_with(mut app: App) {
                 });
             }
             event::Event::Suspended => {
+                let mut events =
+                    app.world.get_resource_mut::<Events<AppLifecycle>>().unwrap();
+                events.send(AppLifecycle::Suspended);
                 active = false;
             }
             event::Event::Resumed => {
+                let mut events =
+                    app.world.get_resource_mut::<Events<AppLifecycle>>().unwrap();
+                events.send(AppLifecycle::Resumed);
                 active = true;
+            }
+            event::Event::Background => {
+                let mut events =
+                    app.world.get_resource_mut::<Events<AppLifecycle>>().unwrap();
+                events.send(AppLifecycle::Background);
+                active = false;
+            }
+            event::Event::Foreground => {
+                let mut events =
+                    app.world.get_resource_mut::<Events<AppLifecycle>>().unwrap();
+                events.send(AppLifecycle::Foreground);
+                active = true;
+            }
+            event::Event::OpenFile(path_buf) => {
+                let mut events =
+                    app.world.get_resource_mut::<Events<OpenFile>>().unwrap();
+                events.send(OpenFile {
+                    path_buf,
+                });
             }
             event::Event::MainEventsCleared => {
                 handle_create_window_events(
@@ -500,9 +528,7 @@ pub fn winit_runner_with(mut app: App) {
                     event_loop,
                     &mut create_window_event_reader,
                 );
-                if active {
-                    app.update();
-                }
+                app.update();
             }
             _ => (),
         }
@@ -525,25 +551,6 @@ fn handle_create_window_events(
     let create_window_events = world.get_resource::<Events<CreateWindow>>().unwrap();
     let mut window_created_events = world.get_resource_mut::<Events<WindowCreated>>().unwrap();
     for create_window_event in create_window_event_reader.iter(&create_window_events) {
-        let window = winit_windows.create_window(
-            event_loop,
-            create_window_event.id,
-            &create_window_event.descriptor,
-        );
-        windows.add(window);
-        window_created_events.send(WindowCreated {
-            id: create_window_event.id,
-        });
-    }
-}
-
-fn handle_initial_window_events(world: &mut World, event_loop: &EventLoop<()>) {
-    let world = world.cell();
-    let mut winit_windows = world.get_resource_mut::<WinitWindows>().unwrap();
-    let mut windows = world.get_resource_mut::<Windows>().unwrap();
-    let mut create_window_events = world.get_resource_mut::<Events<CreateWindow>>().unwrap();
-    let mut window_created_events = world.get_resource_mut::<Events<WindowCreated>>().unwrap();
-    for create_window_event in create_window_events.drain() {
         let window = winit_windows.create_window(
             event_loop,
             create_window_event.id,
