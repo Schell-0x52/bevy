@@ -684,10 +684,6 @@ where
     fn write(self, world: &mut World) {
         if let Some(mut entity) = world.get_entity_mut(self.entity) {
             entity.insert_bundle(self.bundle);
-        } else {
-            panic!("Could not insert a bundle (of type `{}`) for entity {:?} because it doesn't exist in this World.\n\
-                    If this command was added to a newly spawned entity, ensure that you have not despawned that entity within the same stage.\n\
-                    This may have occurred due to system order ambiguity, or if the spawning system has multiple command buffers", std::any::type_name::<T>(), self.entity);
         }
     }
 }
@@ -705,10 +701,6 @@ where
     fn write(self, world: &mut World) {
         if let Some(mut entity) = world.get_entity_mut(self.entity) {
             entity.insert(self.component);
-        } else {
-            panic!("Could not add a component (of type `{}`) to entity {:?} because it doesn't exist in this World.\n\
-                    If this command was added to a newly spawned entity, ensure that you have not despawned that entity within the same stage.\n\
-                    This may have occurred due to system order ambiguity, or if the spawning system has multiple command buffers", std::any::type_name::<T>(), self.entity);
         }
     }
 }
