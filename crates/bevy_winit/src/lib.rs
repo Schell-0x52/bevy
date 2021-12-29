@@ -15,9 +15,9 @@ use bevy_ecs::{system::IntoExclusiveSystem, world::World};
 use bevy_math::{ivec2, DVec2, Vec2};
 use bevy_utils::tracing::{error, trace, warn};
 use bevy_window::{
-    CreateWindow, CursorEntered, CursorLeft, CursorMoved, FileDragAndDrop, OpenFile, AppLifecycle, ReceivedCharacter,
-    WindowBackendScaleFactorChanged, WindowCloseRequested, WindowCreated, WindowFocused,
-    WindowMoved, WindowResized, WindowScaleFactorChanged, Windows,
+    AppLifecycle, CreateWindow, CursorEntered, CursorLeft, CursorMoved, FileDragAndDrop, OpenFile,
+    ReceivedCharacter, WindowBackendScaleFactorChanged, WindowCloseRequested, WindowCreated,
+    WindowFocused, WindowMoved, WindowResized, WindowScaleFactorChanged, Windows,
 };
 use winit::{
     dpi::PhysicalPosition,
@@ -243,7 +243,11 @@ pub fn winit_runner_with(mut app: App, mut event_loop: EventLoop<()>) {
     let event_handler = move |event: Event<()>,
                               event_loop: &EventLoopWindowTarget<()>,
                               control_flow: &mut ControlFlow| {
-        *control_flow = if active { ControlFlow::Poll } else { ControlFlow::Wait };
+        *control_flow = if active {
+            ControlFlow::Poll
+        } else {
+            ControlFlow::Wait
+        };
 
         if let Some(app_exit_events) = app.world.get_resource_mut::<Events<AppExit>>() {
             if app_exit_event_reader
@@ -440,6 +444,7 @@ pub fn winit_runner_with(mut app: App, mut event_loop: EventLoop<()>) {
                         );
                     }
                     WindowEvent::Focused(focused) => {
+                        active = focused;
                         window.update_focused_status_from_backend(focused);
                         let mut focused_events =
                             world.get_resource_mut::<Events<WindowFocused>>().unwrap();
@@ -492,35 +497,40 @@ pub fn winit_runner_with(mut app: App, mut event_loop: EventLoop<()>) {
                 });
             }
             event::Event::Suspended => {
-                let mut events =
-                    app.world.get_resource_mut::<Events<AppLifecycle>>().unwrap();
+                let mut events = app
+                    .world
+                    .get_resource_mut::<Events<AppLifecycle>>()
+                    .unwrap();
                 events.send(AppLifecycle::Suspended);
                 active = false;
             }
             event::Event::Resumed => {
-                let mut events =
-                    app.world.get_resource_mut::<Events<AppLifecycle>>().unwrap();
+                let mut events = app
+                    .world
+                    .get_resource_mut::<Events<AppLifecycle>>()
+                    .unwrap();
                 events.send(AppLifecycle::Resumed);
                 active = true;
             }
             event::Event::Background => {
-                let mut events =
-                    app.world.get_resource_mut::<Events<AppLifecycle>>().unwrap();
+                let mut events = app
+                    .world
+                    .get_resource_mut::<Events<AppLifecycle>>()
+                    .unwrap();
                 events.send(AppLifecycle::Background);
                 active = false;
             }
             event::Event::Foreground => {
-                let mut events =
-                    app.world.get_resource_mut::<Events<AppLifecycle>>().unwrap();
+                let mut events = app
+                    .world
+                    .get_resource_mut::<Events<AppLifecycle>>()
+                    .unwrap();
                 events.send(AppLifecycle::Foreground);
                 active = true;
             }
             event::Event::OpenFile(path_buf) => {
-                let mut events =
-                    app.world.get_resource_mut::<Events<OpenFile>>().unwrap();
-                events.send(OpenFile {
-                    path_buf,
-                });
+                let mut events = app.world.get_resource_mut::<Events<OpenFile>>().unwrap();
+                events.send(OpenFile { path_buf });
             }
             event::Event::MainEventsCleared => {
                 handle_create_window_events(
