@@ -35,6 +35,9 @@ use winit::dpi::LogicalSize;
 ))]
 use winit::platform::unix::EventLoopExtUnix;
 
+#[cfg(target_os = "ios")]
+use winit::platform::ios::EventLoopExtIOS;
+
 #[derive(Default)]
 pub struct WinitPlugin;
 
@@ -227,12 +230,18 @@ pub fn winit_runner_any_thread(app: App) {
     winit_runner_with(app, EventLoop::new_any_thread());
 }
 
+#[cfg(target_os = "ios")]
+pub struct Idiom(pub winit::platform::ios::Idiom);
+
 pub fn winit_runner_with(mut app: App, mut event_loop: EventLoop<()>) {
     let mut create_window_event_reader = ManualEventReader::<CreateWindow>::default();
     let mut app_exit_event_reader = ManualEventReader::<AppExit>::default();
     let mut active = true;
     app.world.insert_non_send(event_loop.create_proxy());
-
+    #[cfg(target_os = "ios")]
+    {
+        app.world.insert_resource(Idiom(event_loop.idiom()))
+    }
     trace!("Entering winit event loop");
 
     let should_return_from_run = app
