@@ -675,14 +675,26 @@ pub fn prepare_lights(
         .write_buffer(&render_device, &render_queue);
 
     // set up light data for each view
+    let point_light_shadows_enabled = point_lights.iter().any(|(_, light)| light.shadows_enabled);
+    let directional_light_shadows_enabled = directional_lights
+        .iter()
+        .any(|(_, light)| light.shadows_enabled);
     for (entity, extracted_view, clusters) in views.iter() {
         let point_light_depth_texture = texture_cache.get(
             &render_device,
             TextureDescriptor {
-                size: Extent3d {
-                    width: point_light_shadow_map.size as u32,
-                    height: point_light_shadow_map.size as u32,
-                    depth_or_array_layers: POINT_SHADOW_LAYERS,
+                size: if point_light_shadows_enabled {
+                    Extent3d {
+                        width: point_light_shadow_map.size as u32,
+                        height: point_light_shadow_map.size as u32,
+                        depth_or_array_layers: POINT_SHADOW_LAYERS,
+                    }
+                } else {
+                    Extent3d {
+                        width: 1,
+                        height: 1,
+                        depth_or_array_layers: POINT_SHADOW_LAYERS,
+                    }
                 },
                 mip_level_count: 1,
                 sample_count: 1,
@@ -695,12 +707,20 @@ pub fn prepare_lights(
         let directional_light_depth_texture = texture_cache.get(
             &render_device,
             TextureDescriptor {
-                size: Extent3d {
-                    width: (directional_light_shadow_map.size as u32)
-                        .min(wgpu_options.limits.max_texture_dimension_2d),
-                    height: (directional_light_shadow_map.size as u32)
-                        .min(wgpu_options.limits.max_texture_dimension_2d),
-                    depth_or_array_layers: DIRECTIONAL_SHADOW_LAYERS,
+                size: if directional_light_shadows_enabled {
+                    Extent3d {
+                        width: (directional_light_shadow_map.size as u32)
+                            .min(wgpu_options.limits.max_texture_dimension_2d),
+                        height: (directional_light_shadow_map.size as u32)
+                            .min(wgpu_options.limits.max_texture_dimension_2d),
+                        depth_or_array_layers: DIRECTIONAL_SHADOW_LAYERS,
+                    }
+                } else {
+                    Extent3d {
+                        width: 1,
+                        height: 1,
+                        depth_or_array_layers: DIRECTIONAL_SHADOW_LAYERS,
+                    }
                 },
                 mip_level_count: 1,
                 sample_count: 1,
