@@ -13,7 +13,10 @@ pub use winit_windows::*;
 use bevy_app::{App, AppExit, CoreStage, Events, ManualEventReader, Plugin};
 use bevy_ecs::{system::IntoExclusiveSystem, world::World};
 use bevy_math::{ivec2, DVec2, Vec2};
-use bevy_utils::tracing::{error, trace, warn};
+use bevy_utils::{
+    tracing::{error, trace, warn},
+    Duration, Instant,
+};
 use bevy_window::{
     AppLifecycle, CreateWindow, CursorEntered, CursorLeft, CursorMoved, FileDragAndDrop, OpenFile,
     ReceivedCharacter, WindowBackendScaleFactorChanged, WindowCloseRequested, WindowCreated,
@@ -234,10 +237,14 @@ pub fn winit_runner_any_thread(app: App) {
 #[cfg(target_os = "ios")]
 pub struct Idiom(pub winit::platform::ios::Idiom);
 
+#[derive(Clone, Copy, PartialEq, Default)]
+pub struct AppUpdateInterval(pub Duration);
+
 pub fn winit_runner_with(mut app: App, mut event_loop: EventLoop<()>) {
     let mut create_window_event_reader = ManualEventReader::<CreateWindow>::default();
     let mut app_exit_event_reader = ManualEventReader::<AppExit>::default();
-    let mut active = true;
+    let mut app_update = false;
+    let mut update_interval = AppUpdateInterval::default();
     app.world
         .insert_non_send_resource(event_loop.create_proxy());
     #[cfg(target_os = "ios")]
@@ -254,12 +261,6 @@ pub fn winit_runner_with(mut app: App, mut event_loop: EventLoop<()>) {
     let event_handler = move |event: Event<()>,
                               event_loop: &EventLoopWindowTarget<()>,
                               control_flow: &mut ControlFlow| {
-        *control_flow = if active {
-            ControlFlow::Poll
-        } else {
-            ControlFlow::Wait
-        };
-
         if let Some(app_exit_events) = app.world.get_resource_mut::<Events<AppExit>>() {
             if app_exit_event_reader
                 .iter(&app_exit_events)
@@ -269,8 +270,35 @@ pub fn winit_runner_with(mut app: App, mut event_loop: EventLoop<()>) {
                 *control_flow = ControlFlow::Exit;
             }
         }
-
         match event {
+            event::Event::NewEvents(cause) => {
+                let new_update_interval = app
+                    .world
+                    .get_resource::<AppUpdateInterval>()
+                    .copied()
+                    .unwrap_or_default();
+
+                if new_update_interval.0.is_zero() {
+                    app_update = true;
+                    *control_flow = ControlFlow::Poll;
+                } else if let Some(start) = match cause {
+                    event::StartCause::Init => Some(Instant::now() + new_update_interval.0),
+                    event::StartCause::ResumeTimeReached {
+                        requested_resume, ..
+                    } => Some(requested_resume + new_update_interval.0),
+                    _ => {
+                        if new_update_interval != update_interval {
+                            Some(Instant::now() + new_update_interval.0)
+                        } else {
+                            None
+                        }
+                    }
+                } {
+                    app_update = true;
+                    *control_flow = ControlFlow::WaitUntil(start + new_update_interval.0);
+                }
+                update_interval = new_update_interval;
+            }
             event::Event::WindowEvent {
                 event,
                 window_id: winit_window_id,
@@ -455,7 +483,6 @@ pub fn winit_runner_with(mut app: App, mut event_loop: EventLoop<()>) {
                         );
                     }
                     WindowEvent::Focused(focused) => {
-                        active = focused;
                         window.update_focused_status_from_backend(focused);
                         let mut focused_events =
                             world.get_resource_mut::<Events<WindowFocused>>().unwrap();
@@ -513,7 +540,6 @@ pub fn winit_runner_with(mut app: App, mut event_loop: EventLoop<()>) {
                     .get_resource_mut::<Events<AppLifecycle>>()
                     .unwrap();
                 events.send(AppLifecycle::Suspended);
-                active = false;
             }
             event::Event::Resumed => {
                 let mut events = app
@@ -521,7 +547,6 @@ pub fn winit_runner_with(mut app: App, mut event_loop: EventLoop<()>) {
                     .get_resource_mut::<Events<AppLifecycle>>()
                     .unwrap();
                 events.send(AppLifecycle::Resumed);
-                active = true;
             }
             event::Event::Background => {
                 let mut events = app
@@ -529,7 +554,6 @@ pub fn winit_runner_with(mut app: App, mut event_loop: EventLoop<()>) {
                     .get_resource_mut::<Events<AppLifecycle>>()
                     .unwrap();
                 events.send(AppLifecycle::Background);
-                active = false;
             }
             event::Event::Foreground => {
                 let mut events = app
@@ -537,7 +561,6 @@ pub fn winit_runner_with(mut app: App, mut event_loop: EventLoop<()>) {
                     .get_resource_mut::<Events<AppLifecycle>>()
                     .unwrap();
                 events.send(AppLifecycle::Foreground);
-                active = true;
             }
             event::Event::OpenFile(path_buf) => {
                 let mut events = app.world.get_resource_mut::<Events<OpenFile>>().unwrap();
@@ -549,7 +572,10 @@ pub fn winit_runner_with(mut app: App, mut event_loop: EventLoop<()>) {
                     event_loop,
                     &mut create_window_event_reader,
                 );
-                app.update();
+                if app_update {
+                    app.update();
+                    app_update = false;
+                }
             }
             _ => (),
         }
