@@ -13,6 +13,7 @@ use bevy_render::{
 };
 use bevy_transform::components::GlobalTransform;
 use bevy_window::Windows;
+use smallvec::SmallVec;
 
 use crate::{
     calculate_cluster_factors, CubeMapFace, CubemapVisibleEntities, ViewClusterBindings,
@@ -417,13 +418,13 @@ pub fn update_clusters(
 
 #[derive(Clone, Component, Debug, Default)]
 pub struct VisiblePointLights {
-    pub entities: Vec<Entity>,
+    pub entities: SmallVec<[Entity; 4]>,
 }
 
 impl VisiblePointLights {
     pub fn from_light_count(count: usize) -> Self {
         Self {
-            entities: Vec::with_capacity(count),
+            entities: SmallVec::with_capacity(count),
         }
     }
 
@@ -503,9 +504,12 @@ pub fn assign_lights_to_clusters(
             clusters.axis_slices.z as f32,
             is_orthographic,
         );
-
-        let mut clusters_lights =
-            vec![VisiblePointLights::from_light_count(light_count); cluster_count];
+        clusters.lights.resize_with(cluster_count, || {
+            VisiblePointLights::from_light_count(light_count)
+        });
+        for light in &mut clusters.lights {
+            light.entities.clear();
+        }
         let mut visible_lights_set = HashSet::with_capacity(light_count);
 
         for (light_entity, light_transform, light) in lights.iter() {
@@ -599,18 +603,17 @@ pub fn assign_lights_to_clusters(
                         if light_sphere.intersects_obb(cluster_aabb, &view_transform) {
                             global_lights_set.insert(light_entity);
                             visible_lights_set.insert(light_entity);
-                            clusters_lights[cluster_index].entities.push(light_entity);
+                            clusters.lights[cluster_index].entities.push(light_entity);
                         }
                     }
                 }
             }
         }
 
-        for cluster_lights in &mut clusters_lights {
+        for cluster_lights in &mut clusters.lights {
             cluster_lights.entities.shrink_to_fit();
         }
 
-        clusters.lights = clusters_lights;
         commands.entity(view_entity).insert(VisiblePointLights {
             entities: visible_lights_set.into_iter().collect(),
         });
