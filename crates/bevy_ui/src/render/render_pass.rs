@@ -4,7 +4,7 @@ use bevy_ecs::{
     system::{lifetimeless::*, SystemParamItem},
 };
 use bevy_render::{
-    camera::ExtractedCameraNames,
+    camera::{ExtractedCamera, ExtractedCameraNames},
     render_graph::*,
     render_phase::*,
     render_resource::{
@@ -35,8 +35,14 @@ impl bevy_render::render_graph::Node for UiPassDriverNode {
 }
 
 pub struct UiPassNode {
-    query:
-        QueryState<(&'static RenderPhase<TransparentUi>, &'static ViewTarget), With<ExtractedView>>,
+    query: QueryState<
+        (
+            &'static RenderPhase<TransparentUi>,
+            &'static ViewTarget,
+            &'static ExtractedCamera,
+        ),
+        With<ExtractedView>,
+    >,
 }
 
 impl UiPassNode {
@@ -65,7 +71,7 @@ impl bevy_render::render_graph::Node for UiPassNode {
         world: &World,
     ) -> Result<(), NodeRunError> {
         let view_entity = graph.get_input_entity(Self::IN_VIEW)?;
-        let (transparent_phase, target) = self
+        let (transparent_phase, target, camera) = self
             .query
             .get_manual(world, view_entity)
             .expect("view entity should exist");
@@ -75,7 +81,11 @@ impl bevy_render::render_graph::Node for UiPassNode {
                 view: &target.view,
                 resolve_target: None,
                 ops: Operations {
-                    load: LoadOp::Load,
+                    load: if let Some(color) = camera.clear_color {
+                        LoadOp::Clear(color.into())
+                    } else {
+                        LoadOp::Load
+                    },
                     store: true,
                 },
             }],

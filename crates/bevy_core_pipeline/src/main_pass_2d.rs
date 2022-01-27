@@ -1,6 +1,7 @@
 use crate::Transparent2d;
 use bevy_ecs::prelude::*;
 use bevy_render::{
+    camera::ExtractedCamera,
     render_graph::{Node, NodeRunError, RenderGraphContext, SlotInfo, SlotType},
     render_phase::{DrawFunctions, RenderPhase, TrackedRenderPass},
     render_resource::{LoadOp, Operations, RenderPassDescriptor},
@@ -9,8 +10,14 @@ use bevy_render::{
 };
 
 pub struct MainPass2dNode {
-    query:
-        QueryState<(&'static RenderPhase<Transparent2d>, &'static ViewTarget), With<ExtractedView>>,
+    query: QueryState<
+        (
+            &'static RenderPhase<Transparent2d>,
+            &'static ViewTarget,
+            &'static ExtractedCamera,
+        ),
+        With<ExtractedView>,
+    >,
 }
 
 impl MainPass2dNode {
@@ -39,7 +46,7 @@ impl Node for MainPass2dNode {
         world: &World,
     ) -> Result<(), NodeRunError> {
         let view_entity = graph.get_input_entity(Self::IN_VIEW)?;
-        let (transparent_phase, target) = self
+        let (transparent_phase, target, camera) = self
             .query
             .get_manual(world, view_entity)
             .expect("view entity should exist");
@@ -47,7 +54,11 @@ impl Node for MainPass2dNode {
         let pass_descriptor = RenderPassDescriptor {
             label: Some("main_pass_2d"),
             color_attachments: &[target.get_color_attachment(Operations {
-                load: LoadOp::Load,
+                load: if let Some(color) = camera.clear_color {
+                    LoadOp::Clear(color.into())
+                } else {
+                    LoadOp::Load
+                },
                 store: true,
             })],
             depth_stencil_attachment: None,

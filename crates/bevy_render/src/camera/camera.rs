@@ -1,6 +1,9 @@
 use crate::{
-    camera::CameraProjection, prelude::Image, render_asset::RenderAssets,
-    render_resource::TextureView, view::ExtractedWindows,
+    camera::CameraProjection,
+    prelude::{Color, Image},
+    render_asset::RenderAssets,
+    render_resource::TextureView,
+    view::ExtractedWindows,
 };
 use bevy_asset::{AssetEvent, Assets, Handle};
 use bevy_ecs::{
@@ -27,7 +30,8 @@ pub struct Camera {
     pub name: Option<String>,
     #[reflect(ignore)]
     pub target: RenderTarget,
-    pub render_on_top: bool,
+    pub clear_color: Option<Color>,
+    pub clear_depth: bool,
     #[reflect(ignore)]
     pub depth_calculation: DepthCalculation,
     pub near: f32,

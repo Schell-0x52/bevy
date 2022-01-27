@@ -15,7 +15,7 @@ pub use camera::*;
 pub use projection::*;
 
 use crate::{
-    prelude::Image,
+    prelude::{Color, Image},
     primitives::Aabb,
     view::{ComputedVisibility, ExtractedView, Visibility, VisibleEntities},
     RenderApp, RenderStage,
@@ -74,7 +74,8 @@ pub struct ExtractedCamera {
     pub target: RenderTarget,
     pub name: Option<String>,
     pub physical_size: Option<UVec2>,
-    pub render_on_top: bool,
+    pub clear_depth: bool,
+    pub clear_color: Option<Color>,
 }
 
 fn extract_cameras(
@@ -97,7 +98,8 @@ fn extract_cameras(
                         target: camera.target.clone(),
                         name: camera.name.clone(),
                         physical_size: camera.target.get_physical_size(&windows, &images),
-                        render_on_top: camera.render_on_top,
+                        clear_depth: camera.clear_depth,
+                        clear_color: camera.clear_color,
                     },
                     ExtractedView {
                         projection: camera.projection_matrix,

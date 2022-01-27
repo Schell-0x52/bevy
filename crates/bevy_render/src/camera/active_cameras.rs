@@ -27,6 +27,16 @@ impl ActiveCameras {
         );
     }
 
+    pub fn add_entity(&mut self, name: &str, entity: Entity) {
+        self.cameras.insert(
+            name.to_string(),
+            ActiveCamera {
+                name: name.to_string(),
+                entity: Some(entity),
+            },
+        );
+    }
+
     pub fn get(&self, name: &str) -> Option<&ActiveCamera> {
         self.cameras.get(name)
     }
