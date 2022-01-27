@@ -1,6 +1,7 @@
 use crate::{AlphaMask3d, Opaque3d, Transparent3d};
 use bevy_ecs::prelude::*;
 use bevy_render::{
+    camera::ExtractedCamera,
     render_graph::{Node, NodeRunError, RenderGraphContext, SlotInfo, SlotType},
     render_phase::{DrawFunctions, RenderPhase, TrackedRenderPass},
     render_resource::{LoadOp, Operations, RenderPassDepthStencilAttachment, RenderPassDescriptor},
@@ -16,6 +17,7 @@ pub struct MainPass3dNode {
             &'static RenderPhase<Transparent3d>,
             &'static ViewTarget,
             &'static ViewDepthTexture,
+            &'static ExtractedCamera,
         ),
         With<ExtractedView>,
     >,
@@ -47,7 +49,7 @@ impl Node for MainPass3dNode {
         world: &World,
     ) -> Result<(), NodeRunError> {
         let view_entity = graph.get_input_entity(Self::IN_VIEW)?;
-        let (opaque_phase, alpha_mask_phase, transparent_phase, target, depth) =
+        let (opaque_phase, alpha_mask_phase, transparent_phase, target, depth, camera) =
             match self.query.get_manual(world, view_entity) {
                 Ok(query) => query,
                 Err(_) => return Ok(()), // No window
@@ -61,14 +63,18 @@ impl Node for MainPass3dNode {
                 // NOTE: The opaque pass loads the color
                 // buffer as well as writing to it.
                 color_attachments: &[target.get_color_attachment(Operations {
-                    load: LoadOp::Load,
+                    load: if let Some(color) = camera.clear_color {
+                        LoadOp::Clear(color.into())
+                    } else {
+                        LoadOp::Load
+                    },
                     store: true,
                 })],
                 depth_stencil_attachment: Some(RenderPassDepthStencilAttachment {
                     view: &depth.view,
                     // NOTE: The opaque main pass loads the depth buffer and possibly overwrites it
                     depth_ops: Some(Operations {
-                        load: if depth.render_on_top {
+                        load: if camera.clear_depth {
                             LoadOp::Clear(0.0)
                         } else {
                             LoadOp::Load

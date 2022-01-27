@@ -123,7 +123,6 @@ impl ViewTarget {
 pub struct ViewDepthTexture {
     pub texture: Texture,
     pub view: TextureView,
-    pub render_on_top: bool,
 }
 
 fn prepare_view_uniforms(
