@@ -1238,28 +1238,30 @@ impl Node for ShadowPassNode {
                     .view_light_query
                     .get_manual(world, view_light_entity)
                     .unwrap();
-                let pass_descriptor = RenderPassDescriptor {
-                    label: Some(&view_light.pass_name),
-                    color_attachments: &[],
-                    depth_stencil_attachment: Some(RenderPassDepthStencilAttachment {
-                        view: &view_light.depth_texture_view,
-                        depth_ops: Some(Operations {
-                            load: LoadOp::Clear(0.0),
-                            store: true,
+                if !shadow_phase.items.is_empty() {
+                    let pass_descriptor = RenderPassDescriptor {
+                        label: Some(&view_light.pass_name),
+                        color_attachments: &[],
+                        depth_stencil_attachment: Some(RenderPassDepthStencilAttachment {
+                            view: &view_light.depth_texture_view,
+                            depth_ops: Some(Operations {
+                                load: LoadOp::Clear(0.0),
+                                store: true,
+                            }),
+                            stencil_ops: None,
                         }),
-                        stencil_ops: None,
-                    }),
-                };
+                    };
 
-                let draw_functions = world.get_resource::<DrawFunctions<Shadow>>().unwrap();
-                let render_pass = render_context
-                    .command_encoder
-                    .begin_render_pass(&pass_descriptor);
-                let mut draw_functions = draw_functions.write();
-                let mut tracked_pass = TrackedRenderPass::new(render_pass);
-                for item in &shadow_phase.items {
-                    let draw_function = draw_functions.get_mut(item.draw_function).unwrap();
-                    draw_function.draw(world, &mut tracked_pass, view_light_entity, item);
+                    let draw_functions = world.get_resource::<DrawFunctions<Shadow>>().unwrap();
+                    let render_pass = render_context
+                        .command_encoder
+                        .begin_render_pass(&pass_descriptor);
+                    let mut draw_functions = draw_functions.write();
+                    let mut tracked_pass = TrackedRenderPass::new(render_pass);
+                    for item in &shadow_phase.items {
+                        let draw_function = draw_functions.get_mut(item.draw_function).unwrap();
+                        draw_function.draw(world, &mut tracked_pass, view_light_entity, item);
+                    }
                 }
             }
         }

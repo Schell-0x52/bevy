@@ -75,36 +75,38 @@ impl bevy_render::render_graph::Node for UiPassNode {
             .query
             .get_manual(world, view_entity)
             .expect("view entity should exist");
-        let pass_descriptor = RenderPassDescriptor {
-            label: Some("ui_pass"),
-            color_attachments: &[RenderPassColorAttachment {
-                view: &target.view,
-                resolve_target: None,
-                ops: Operations {
-                    load: if let Some(color) = camera.clear_color {
-                        LoadOp::Clear(color.into())
-                    } else {
-                        LoadOp::Load
+        if !transparent_phase.items.is_empty() || camera.clear_color.is_some() {
+            let pass_descriptor = RenderPassDescriptor {
+                label: Some("ui_pass"),
+                color_attachments: &[RenderPassColorAttachment {
+                    view: &target.view,
+                    resolve_target: None,
+                    ops: Operations {
+                        load: if let Some(color) = camera.clear_color {
+                            LoadOp::Clear(color.into())
+                        } else {
+                            LoadOp::Load
+                        },
+                        store: true,
                     },
-                    store: true,
-                },
-            }],
-            depth_stencil_attachment: None,
-        };
+                }],
+                depth_stencil_attachment: None,
+            };
 
-        let draw_functions = world
-            .get_resource::<DrawFunctions<TransparentUi>>()
-            .unwrap();
+            let draw_functions = world
+                .get_resource::<DrawFunctions<TransparentUi>>()
+                .unwrap();
 
-        let render_pass = render_context
-            .command_encoder
-            .begin_render_pass(&pass_descriptor);
+            let render_pass = render_context
+                .command_encoder
+                .begin_render_pass(&pass_descriptor);
 
-        let mut draw_functions = draw_functions.write();
-        let mut tracked_pass = TrackedRenderPass::new(render_pass);
-        for item in &transparent_phase.items {
-            let draw_function = draw_functions.get_mut(item.draw_function).unwrap();
-            draw_function.draw(world, &mut tracked_pass, view_entity, item);
+            let mut draw_functions = draw_functions.write();
+            let mut tracked_pass = TrackedRenderPass::new(render_pass);
+            for item in &transparent_phase.items {
+                let draw_function = draw_functions.get_mut(item.draw_function).unwrap();
+                draw_function.draw(world, &mut tracked_pass, view_entity, item);
+            }
         }
         Ok(())
     }

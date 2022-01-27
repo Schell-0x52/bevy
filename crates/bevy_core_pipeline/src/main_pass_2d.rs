@@ -51,32 +51,34 @@ impl Node for MainPass2dNode {
             .get_manual(world, view_entity)
             .expect("view entity should exist");
 
-        let pass_descriptor = RenderPassDescriptor {
-            label: Some("main_pass_2d"),
-            color_attachments: &[target.get_color_attachment(Operations {
-                load: if let Some(color) = camera.clear_color {
-                    LoadOp::Clear(color.into())
-                } else {
-                    LoadOp::Load
-                },
-                store: true,
-            })],
-            depth_stencil_attachment: None,
-        };
+        if !transparent_phase.items.is_empty() || camera.clear_color.is_some() {
+            let pass_descriptor = RenderPassDescriptor {
+                label: Some("main_pass_2d"),
+                color_attachments: &[target.get_color_attachment(Operations {
+                    load: if let Some(color) = camera.clear_color {
+                        LoadOp::Clear(color.into())
+                    } else {
+                        LoadOp::Load
+                    },
+                    store: true,
+                })],
+                depth_stencil_attachment: None,
+            };
 
-        let draw_functions = world
-            .get_resource::<DrawFunctions<Transparent2d>>()
-            .unwrap();
+            let draw_functions = world
+                .get_resource::<DrawFunctions<Transparent2d>>()
+                .unwrap();
 
-        let render_pass = render_context
-            .command_encoder
-            .begin_render_pass(&pass_descriptor);
+            let render_pass = render_context
+                .command_encoder
+                .begin_render_pass(&pass_descriptor);
 
-        let mut draw_functions = draw_functions.write();
-        let mut tracked_pass = TrackedRenderPass::new(render_pass);
-        for item in &transparent_phase.items {
-            let draw_function = draw_functions.get_mut(item.draw_function).unwrap();
-            draw_function.draw(world, &mut tracked_pass, view_entity, item);
+            let mut draw_functions = draw_functions.write();
+            let mut tracked_pass = TrackedRenderPass::new(render_pass);
+            for item in &transparent_phase.items {
+                let draw_function = draw_functions.get_mut(item.draw_function).unwrap();
+                draw_function.draw(world, &mut tracked_pass, view_entity, item);
+            }
         }
         Ok(())
     }

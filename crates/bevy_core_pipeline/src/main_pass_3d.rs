@@ -55,7 +55,7 @@ impl Node for MainPass3dNode {
                 Err(_) => return Ok(()), // No window
             };
 
-        {
+        if !opaque_phase.items.is_empty() || camera.clear_color.is_some() || camera.clear_depth {
             // Run the opaque pass, sorted front-to-back
             // NOTE: Scoped to drop the mutable borrow of render_context
             let pass_descriptor = RenderPassDescriptor {
@@ -98,7 +98,7 @@ impl Node for MainPass3dNode {
             }
         }
 
-        {
+        if !alpha_mask_phase.items.is_empty() {
             // Run the alpha mask pass, sorted front-to-back
             // NOTE: Scoped to drop the mutable borrow of render_context
             let pass_descriptor = RenderPassDescriptor {
@@ -132,7 +132,7 @@ impl Node for MainPass3dNode {
             }
         }
 
-        {
+        if !transparent_phase.items.is_empty() {
             // Run the transparent pass, sorted back-to-front
             // NOTE: Scoped to drop the mutable borrow of render_context
             let pass_descriptor = RenderPassDescriptor {
