@@ -9,6 +9,7 @@ use bevy::{
 
 fn main() {
     App::new()
+        .insert_resource(ClearColor::from_default_color(Color::BLACK))
         .add_plugins(DefaultPlugins)
         .add_startup_system(setup)
         .add_system(movement)
@@ -92,20 +93,10 @@ fn setup(
     });
 
     // camera
-    active_cameras.add_entity(
-        CameraPlugin::CAMERA_3D,
-        commands
-            .spawn_bundle(PerspectiveCameraBundle {
-                transform: Transform::from_xyz(0.0, 0.0, 16.0).looking_at(Vec3::ZERO, Vec3::Y),
-                camera: Camera {
-                    clear_color: Some(Color::BLACK),
-                    clear_depth: true,
-                    ..Default::default()
-                },
-                ..Default::default()
-            })
-            .id(),
-    );
+    commands.spawn_bundle(PerspectiveCameraBundle {
+        transform: Transform::from_xyz(0.0, 0.0, 16.0).looking_at(Vec3::ZERO, Vec3::Y),
+        ..Default::default()
+    });
 }
 
 fn animate_light_direction(time: Res<Time>, mut query: Query<&mut Transform, With<SpinnyLights>>) {
