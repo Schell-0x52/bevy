@@ -63,10 +63,12 @@ impl RenderAsset for CustomMaterial {
     fn extract_asset(&self) -> Self::ExtractedAsset {
         self.clone()
     }
+    type Data = ();
 
     fn prepare_asset(
         extracted_asset: Self::ExtractedAsset,
         (render_device, material_pipeline): &mut SystemParamItem<Self::Param>,
+        _data: &mut Self::Data,
     ) -> Result<Self::PreparedAsset, PrepareAssetError<Self::ExtractedAsset>> {
         let color = Vec4::from_slice(&extracted_asset.color.as_linear_rgba_f32());
         let buffer = render_device.create_buffer_with_data(&BufferInitDescriptor {

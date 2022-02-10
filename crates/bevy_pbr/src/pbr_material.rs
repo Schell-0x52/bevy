@@ -163,6 +163,7 @@ impl RenderAsset for StandardMaterial {
         SRes<MaterialPipeline<StandardMaterial>>,
         SRes<RenderAssets<Image>>,
     );
+    type Data = ();
 
     fn extract_asset(&self) -> Self::ExtractedAsset {
         self.clone()
@@ -171,6 +172,7 @@ impl RenderAsset for StandardMaterial {
     fn prepare_asset(
         material: Self::ExtractedAsset,
         (render_device, pbr_pipeline, gpu_images): &mut SystemParamItem<Self::Param>,
+        _data: &mut Self::Data,
     ) -> Result<Self::PreparedAsset, PrepareAssetError<Self::ExtractedAsset>> {
         let (base_color_texture_view, base_color_sampler) = if let Some(result) = pbr_pipeline
             .mesh_pipeline

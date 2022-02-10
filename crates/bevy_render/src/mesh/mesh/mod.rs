@@ -180,7 +180,10 @@ impl Mesh {
     ///
     /// # Panics
     /// Panics if the attributes have different vertex counts.
-    pub fn get_vertex_buffer_data(&self) -> Option<Vec<u8>> {
+    pub fn get_vertex_buffer_data<'a>(
+        &self,
+        attributes_interleaved_buffer: &'a mut Vec<u8>,
+    ) -> Option<&'a mut Vec<u8>> {
         let mut vertex_size = 0;
         for attribute_values in self.attributes.values() {
             let vertex_format = VertexFormat::from(attribute_values);
@@ -188,7 +191,7 @@ impl Mesh {
         }
 
         let vertex_count = self.count_vertices();
-        let mut attributes_interleaved_buffer = Vec::new();
+        attributes_interleaved_buffer.clear();
         attributes_interleaved_buffer
             .try_reserve(vertex_count * vertex_size)
             .ok()?;
@@ -616,6 +619,7 @@ impl RenderAsset for Mesh {
     type ExtractedAsset = Mesh;
     type PreparedAsset = GpuMesh;
     type Param = SRes<RenderDevice>;
+    type Data = Vec<u8>;
 
     /// Clones the mesh.
     fn extract_asset(&self) -> Self::ExtractedAsset {
@@ -626,9 +630,10 @@ impl RenderAsset for Mesh {
     fn prepare_asset(
         mesh: Self::ExtractedAsset,
         render_device: &mut SystemParamItem<Self::Param>,
+        data: &mut Self::Data,
     ) -> Result<Self::PreparedAsset, PrepareAssetError<Self::ExtractedAsset>> {
         let vertex_buffer_data = mesh
-            .get_vertex_buffer_data()
+            .get_vertex_buffer_data(data)
             .ok_or(PrepareAssetError::Abort)?;
         let vertex_buffer = render_device.create_buffer_with_data(&BufferInitDescriptor {
             usage: BufferUsages::VERTEX,

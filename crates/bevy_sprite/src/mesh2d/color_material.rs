@@ -118,6 +118,7 @@ impl RenderAsset for ColorMaterial {
         SRes<Material2dPipeline<ColorMaterial>>,
         SRes<RenderAssets<Image>>,
     );
+    type Data = ();
 
     fn extract_asset(&self) -> Self::ExtractedAsset {
         self.clone()
@@ -126,6 +127,7 @@ impl RenderAsset for ColorMaterial {
     fn prepare_asset(
         material: Self::ExtractedAsset,
         (render_device, color_pipeline, gpu_images): &mut SystemParamItem<Self::Param>,
+        _data: &mut Self::Data,
     ) -> Result<Self::PreparedAsset, PrepareAssetError<Self::ExtractedAsset>> {
         let (texture_view, sampler) = if let Some(result) = color_pipeline
             .mesh2d_pipeline
