@@ -10,8 +10,7 @@ use bevy_ecs::{
     component::Component,
     entity::Entity,
     event::EventReader,
-    prelude::{DetectChanges, QueryState},
-    query::Added,
+    prelude::{Changed, DetectChanges, QueryState},
     reflect::ReflectComponent,
     system::{QuerySet, Res},
 };
@@ -154,7 +153,7 @@ pub fn camera_system<T: CameraProjection + Component>(
     images: Res<Assets<Image>>,
     mut queries: QuerySet<(
         QueryState<(Entity, &mut Camera, &mut T)>,
-        QueryState<Entity, Added<Camera>>,
+        QueryState<Entity, Changed<Camera>>,
     )>,
 ) {
     let mut changed_window_ids = Vec::new();
@@ -189,15 +188,15 @@ pub fn camera_system<T: CameraProjection + Component>(
         })
         .collect();
 
-    let mut added_cameras = vec![];
+    let mut changed_cameras = vec![];
     for entity in &mut queries.q1().iter() {
-        added_cameras.push(entity);
+        changed_cameras.push(entity);
     }
     for (entity, mut camera, mut camera_projection) in queries.q0().iter_mut() {
         if camera
             .target
             .is_changed(&changed_window_ids, &changed_image_handles)
-            || added_cameras.contains(&entity)
+            || changed_cameras.contains(&entity)
             || camera_projection.is_changed()
         {
             if let Some(size) = camera.target.get_logical_size(&windows, &images) {
