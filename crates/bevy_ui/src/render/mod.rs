@@ -6,7 +6,7 @@ pub use camera::*;
 pub use pipeline::*;
 pub use render_pass::*;
 
-use std::ops::Range;
+use std::{collections::hash_map, ops::Range};
 
 use bevy_app::prelude::*;
 use bevy_asset::{AssetEvent, Assets, Handle, HandleUntyped};
@@ -446,26 +446,31 @@ pub fn queue_uinodes(
         let pipeline = pipelines.specialize(&mut pipeline_cache, &ui_pipeline, UiPipelineKey {});
         for mut transparent_phase in views.iter_mut() {
             for (entity, batch) in ui_batches.iter() {
-                image_bind_groups
-                    .values
-                    .entry(batch.image.clone_weak())
-                    .or_insert_with(|| {
-                        let gpu_image = gpu_images.get(&batch.image).unwrap();
-                        render_device.create_bind_group(&BindGroupDescriptor {
-                            entries: &[
-                                BindGroupEntry {
-                                    binding: 0,
-                                    resource: BindingResource::TextureView(&gpu_image.texture_view),
-                                },
-                                BindGroupEntry {
-                                    binding: 1,
-                                    resource: BindingResource::Sampler(&gpu_image.sampler),
-                                },
-                            ],
-                            label: Some("ui_material_bind_group"),
-                            layout: &ui_pipeline.image_layout,
-                        })
-                    });
+                match image_bind_groups.values.entry(batch.image.clone_weak()) {
+                    hash_map::Entry::Vacant(entry) => {
+                        if let Some(gpu_image) = gpu_images.get(&batch.image) {
+                            entry.insert(render_device.create_bind_group(&BindGroupDescriptor {
+                                entries: &[
+                                    BindGroupEntry {
+                                        binding: 0,
+                                        resource: BindingResource::TextureView(
+                                            &gpu_image.texture_view,
+                                        ),
+                                    },
+                                    BindGroupEntry {
+                                        binding: 1,
+                                        resource: BindingResource::Sampler(&gpu_image.sampler),
+                                    },
+                                ],
+                                label: Some("ui_material_bind_group"),
+                                layout: &ui_pipeline.image_layout,
+                            }));
+                        } else {
+                            continue;
+                        }
+                    }
+                    hash_map::Entry::Occupied(_) => {}
+                }
 
                 transparent_phase.add(TransparentUi {
                     draw_function: draw_ui_function,
