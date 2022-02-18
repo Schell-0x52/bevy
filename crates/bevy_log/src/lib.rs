@@ -109,7 +109,10 @@ impl Plugin for LogPlugin {
             let settings = app.world.get_resource_or_insert_with(LogSettings::default);
             format!("{},{}", settings.level, settings.filter)
         };
-        LogTracer::init().unwrap();
+        if LogTracer::init().is_err() {
+            info!("Logging already initized.");
+            return;
+        }
         let filter_layer = EnvFilter::try_from_default_env()
             .or_else(|_| EnvFilter::try_new(&default_filter))
             .unwrap();
