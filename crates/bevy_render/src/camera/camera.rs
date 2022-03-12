@@ -27,10 +27,23 @@ pub struct Camera {
     pub name: Option<String>,
     #[reflect(ignore)]
     pub target: RenderTarget,
+    pub clear_mode: ClearMode,
     #[reflect(ignore)]
     pub depth_calculation: DepthCalculation,
     pub near: f32,
     pub far: f32,
+}
+
+#[derive(Debug, Clone, Reflect, PartialEq, Eq)] // Hash ?
+pub enum ClearMode {
+    None,
+    ColorDepth
+}
+
+impl Default for ClearMode {
+    fn default() -> Self {
+        Self::ColorDepth
+    }
 }
 
 #[derive(Debug, Clone, Reflect, PartialEq, Eq, Hash)]

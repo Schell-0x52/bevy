@@ -3,7 +3,7 @@ use std::collections::HashSet;
 use crate::{ClearColor, RenderTargetClearColors};
 use bevy_ecs::prelude::*;
 use bevy_render::{
-    camera::{ExtractedCamera, RenderTarget},
+    camera::{ClearMode, ExtractedCamera, RenderTarget},
     prelude::Image,
     render_asset::RenderAssets,
     render_graph::{Node, NodeRunError, RenderGraphContext, SlotInfo},
@@ -59,31 +59,35 @@ impl Node for ClearPassNode {
         // clearing happen on "render targets" instead of "views" (see the TODO below for more context).
         for (target, depth, camera) in self.query.iter_manual(world) {
             let mut color = &clear_color.0;
+            let mut clear_mode = ClearMode::default();
             if let Some(camera) = camera {
                 cleared_targets.insert(&camera.target);
+                clear_mode = camera.clear_mode.clone();
                 if let Some(target_color) = render_target_clear_colors.get(&camera.target) {
                     color = target_color;
                 }
             }
-            let pass_descriptor = RenderPassDescriptor {
-                label: Some("clear_pass"),
-                color_attachments: &[target.get_color_attachment(Operations {
-                    load: LoadOp::Clear((*color).into()),
-                    store: true,
-                })],
-                depth_stencil_attachment: depth.map(|depth| RenderPassDepthStencilAttachment {
-                    view: &depth.view,
-                    depth_ops: Some(Operations {
-                        load: LoadOp::Clear(0.0),
+            if clear_mode == ClearMode::ColorDepth {
+                let pass_descriptor = RenderPassDescriptor {
+                    label: Some("clear_pass"),
+                    color_attachments: &[target.get_color_attachment(Operations {
+                        load: LoadOp::Clear((*color).into()),
                         store: true,
+                    })],
+                    depth_stencil_attachment: depth.map(|depth| RenderPassDepthStencilAttachment {
+                        view: &depth.view,
+                        depth_ops: Some(Operations {
+                            load: LoadOp::Clear(0.0),
+                            store: true,
+                        }),
+                        stencil_ops: None,
                     }),
-                    stencil_ops: None,
-                }),
-            };
+                };
 
-            render_context
-                .command_encoder
-                .begin_render_pass(&pass_descriptor);
+                render_context
+                    .command_encoder
+                    .begin_render_pass(&pass_descriptor);
+            }
         }
 
         // TODO: This is a hack to ensure we don't call present() on frames without any work,
