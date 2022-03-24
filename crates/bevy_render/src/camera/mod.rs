@@ -72,6 +72,7 @@ pub struct ExtractedCameraNames {
 #[derive(Component, Debug)]
 pub struct ExtractedCamera {
     pub target: RenderTarget,
+    pub clear: ClearAttachments,
     pub name: Option<String>,
     pub physical_size: Option<UVec2>,
 }
@@ -94,6 +95,7 @@ fn extract_cameras(
                 commands.get_or_spawn(entity).insert_bundle((
                     ExtractedCamera {
                         target: camera.target.clone(),
+                        clear: camera.clear.clone(),
                         name: camera.name.clone(),
                         physical_size: camera.target.get_physical_size(&windows, &images),
                     },

@@ -3,7 +3,7 @@ use std::collections::HashSet;
 use crate::{ClearColor, RenderTargetClearColors};
 use bevy_ecs::prelude::*;
 use bevy_render::{
-    camera::{ExtractedCamera, RenderTarget},
+    camera::{ExtractedCamera, RenderTarget, ClearOp},
     prelude::Image,
     render_asset::RenderAssets,
     render_graph::{Node, NodeRunError, RenderGraphContext, SlotInfo},
@@ -18,9 +18,9 @@ use bevy_render::{
 pub struct ClearPassNode {
     query: QueryState<
         (
-            &'static ViewTarget,
+            &'static ExtractedCamera,
+            Option<&'static ViewTarget>,
             Option<&'static ViewDepthTexture>,
-            Option<&'static ExtractedCamera>,
         ),
         With<ExtractedView>,
     >,
@@ -49,78 +49,47 @@ impl Node for ClearPassNode {
         render_context: &mut RenderContext,
         world: &World,
     ) -> Result<(), NodeRunError> {
-        let mut cleared_targets = HashSet::new();
-        let clear_color = world.get_resource::<ClearColor>().unwrap();
-        let render_target_clear_colors = world.get_resource::<RenderTargetClearColors>().unwrap();
 
-        // This gets all ViewTargets and ViewDepthTextures and clears its attachments
-        // TODO: This has the potential to clear the same target multiple times, if there
-        // are multiple views drawing to the same target. This should be fixed when we make
-        // clearing happen on "render targets" instead of "views" (see the TODO below for more context).
-        for (target, depth, camera) in self.query.iter_manual(world) {
-            let mut color = &clear_color.0;
-            if let Some(camera) = camera {
-                cleared_targets.insert(&camera.target);
-                if let Some(target_color) = render_target_clear_colors.get(&camera.target) {
-                    color = target_color;
+        for (camera, color_target, depth_target) in self.query.iter_manual(world) {
+            let color_attachments = color_target.and_then(|target| {
+                match camera.clear.color {
+                    ClearOp::Value(v) =>
+                        Some([target.get_color_attachment(Operations{
+                            load: LoadOp::Clear(v.into()),
+                            store: true,
+                        })]),
+                    _ => None,
                 }
-            }
-            let pass_descriptor = RenderPassDescriptor {
-                label: Some("clear_pass"),
-                color_attachments: &[target.get_color_attachment(Operations {
-                    load: LoadOp::Clear((*color).into()),
-                    store: true,
-                })],
-                depth_stencil_attachment: depth.map(|depth| RenderPassDepthStencilAttachment {
-                    view: &depth.view,
-                    depth_ops: Some(Operations {
-                        load: LoadOp::Clear(0.0),
-                        store: true,
-                    }),
-                    stencil_ops: None,
-                }),
-            };
+            });
+            let depth_stencil_attachment = depth_target.and_then(|target| {
+                match camera.clear.depth {
+                    ClearOp::Value(v) =>
+                        Some(RenderPassDepthStencilAttachment {
+                            view: &target.view,
+                            depth_ops: Some(Operations{
+                                load: LoadOp::Clear(v),
+                                store: true,
+                            }),
+                            stencil_ops: None,
+                        }),
+                    _ => None,
+                }
+            });
 
-            render_context
-                .command_encoder
-                .begin_render_pass(&pass_descriptor);
-        }
-
-        // TODO: This is a hack to ensure we don't call present() on frames without any work,
-        // which will cause panics. The real fix here is to clear "render targets" directly
-        // instead of "views". This should be removed once full RenderTargets are implemented.
-        let windows = world.get_resource::<ExtractedWindows>().unwrap();
-        let images = world.get_resource::<RenderAssets<Image>>().unwrap();
-        for target in render_target_clear_colors.colors.keys().cloned().chain(
-            windows
-                .values()
-                .map(|window| RenderTarget::Window(window.id)),
-        ) {
-            // skip windows that have already been cleared
-            if cleared_targets.contains(&target) {
-                continue;
-            }
-            let pass_descriptor = RenderPassDescriptor {
-                label: Some("clear_pass"),
-                color_attachments: &[RenderPassColorAttachment {
-                    view: target.get_texture_view(windows, images).unwrap(),
-                    resolve_target: None,
-                    ops: Operations {
-                        load: LoadOp::Clear(
-                            (*render_target_clear_colors
-                                .get(&target)
-                                .unwrap_or(&clear_color.0))
-                            .into(),
-                        ),
-                        store: true,
+            if color_attachments.is_some() || depth_stencil_attachment.is_some() {
+                let pass_descriptor = RenderPassDescriptor {
+                    label: Some("clear_pass"),
+                    color_attachments: match &color_attachments {
+                        Some(color) => color,
+                        None => &[],
                     },
-                }],
-                depth_stencil_attachment: None,
-            };
+                    depth_stencil_attachment,
+                };
 
-            render_context
-                .command_encoder
-                .begin_render_pass(&pass_descriptor);
+                render_context
+                    .command_encoder
+                    .begin_render_pass(&pass_descriptor);
+            }
         }
 
         Ok(())

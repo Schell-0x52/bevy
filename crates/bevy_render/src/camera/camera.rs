@@ -1,5 +1,6 @@
 use crate::{
-    camera::CameraProjection, prelude::Image, render_asset::RenderAssets,
+    prelude::{Image, Color},
+    camera::CameraProjection, render_asset::RenderAssets,
     render_resource::TextureView, view::ExtractedWindows,
 };
 use bevy_asset::{AssetEvent, Assets, Handle};
@@ -27,10 +28,35 @@ pub struct Camera {
     pub name: Option<String>,
     #[reflect(ignore)]
     pub target: RenderTarget,
+    pub clear: ClearAttachments,
     #[reflect(ignore)]
     pub depth_calculation: DepthCalculation,
     pub near: f32,
     pub far: f32,
+}
+
+#[derive(Debug, Clone, Reflect)]
+pub struct ClearAttachments {
+    pub color: ClearOp<Color>,
+    pub depth: ClearOp<f32>,
+    pub stencil: ClearOp<f32>, // XXX future ?
+}
+
+impl Default for ClearAttachments {
+    fn default() -> Self {
+        Self {
+            color: ClearOp::Value(Color::WHITE),
+            depth: ClearOp::Value(0.0),
+            stencil: ClearOp::None,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Reflect, PartialEq, Eq)] // TODO; check derives
+pub enum ClearOp<V : Clone + Reflect> {
+    None,
+    Value(V),
+    Image(Handle<Image>), // XXX RenderTarget ?
 }
 
 #[derive(Debug, Clone, Reflect, PartialEq, Eq, Hash)]
